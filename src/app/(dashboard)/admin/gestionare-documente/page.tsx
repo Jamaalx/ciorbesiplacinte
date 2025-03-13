@@ -1,41 +1,67 @@
 // src/app/(dashboard)/admin/gestionare-documente/page.tsx
 import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
+import { authOptions } from "@/lib/auth"; // Add .ts extension
 import { redirect } from "next/navigation";
-import { db } from "@/lib/db";
-import { formatDate, getDocumentCategoryLabel } from "@/lib/utils";
+import { db } from "@/lib/db"; // Add .ts extension
+import { formatDate, getDocumentCategoryLabel } from "@/lib/utils"; // Add .ts extension
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/button"; // Add .tsx extension
+import type { Document, User, DocumentAccess } from "@prisma/client";
+
+// Define the type for the document with included relations
+type DocumentWithRelations = Document & {
+  uploader: Pick<User, "name">;
+  access: Pick<DocumentAccess, "userId">[];
+};
+
+// Define props for CategoryBadge
+interface CategoryBadgeProps {
+  category: string;
+}
 
 export default async function DocumentManagementPage() {
+  // Fetch session and handle authentication
   const session = await getServerSession(authOptions);
-  
+
   if (!session) {
     redirect("/autentificare/login");
   }
 
-  const role = session.user?.role as string;
+  // Safely access role with a fallback
+  const role = session.user?.role ?? "GUEST";
   if (role !== "ADMIN") {
     redirect("/dashboard");
   }
 
-  const documents = await db.document.findMany({
-    include: {
-      uploader: {
-        select: {
-          name: true,
+  // Fetch documents with error handling
+  let documents: DocumentWithRelations[] = [];
+  try {
+    documents = await db.document.findMany({
+      include: {
+        uploader: {
+          select: {
+            name: true,
+          },
+        },
+        access: {
+          select: {
+            userId: true,
+          },
         },
       },
-      access: {
-        select: {
-          userId: true,
-        },
+      orderBy: {
+        createdAt: "desc",
       },
-    },
-    orderBy: {
-      createdAt: "desc",
-    },
-  });
+    });
+  } catch (error) {
+    console.error("Failed to fetch documents:", error);
+    return (
+      <div className="space-y-6">
+        <h1 className="text-2xl font-bold text-gray-800">Gestionare Documente</h1>
+        <p className="text-red-500">Eroare la încărcarea documentelor. Te rugăm să încerci din nou mai târziu.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -170,7 +196,7 @@ export default async function DocumentManagementPage() {
                         <span className="text-gray-300">|</span>
                         <Link
                           href={`/dashboard/admin/gestionare-documente/${document.id}`}
-                          className="text-primary-600 hover:text-primary-700"
+                          className="text-blue-600 hover:text-blue-700"
                         >
                           Editează
                         </Link>
@@ -187,7 +213,7 @@ export default async function DocumentManagementPage() {
   );
 }
 
-function CategoryBadge({ category }: { category: string }) {
+function CategoryBadge({ category }: CategoryBadgeProps) {
   const categoryStyles: Record<string, string> = {
     HR: "bg-blue-100 text-blue-800",
     ADMINISTRATIVE: "bg-green-100 text-green-800",

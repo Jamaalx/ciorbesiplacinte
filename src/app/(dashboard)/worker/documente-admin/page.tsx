@@ -8,9 +8,12 @@ import { formatDate } from "@/lib/utils";
 export default async function AdminDocumentsPage() {
   const session = await getServerSession(authOptions);
   
-  if (!session) {
+  if (!session || !session.user) {
     redirect("/autentificare/login");
   }
+
+  // Type assertion to ensure TypeScript knows user.id exists
+  const userId = session.user.id as string;
 
   const documents = await db.document.findMany({
     where: {
@@ -19,7 +22,7 @@ export default async function AdminDocumentsPage() {
         {
           access: {
             some: {
-              userId: session.user.id as string,
+              userId: userId,
             },
           },
         },

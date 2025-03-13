@@ -1,0 +1,119 @@
+// This is your Prisma schema file
+// Learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id               String    @id @default(uuid())
+  email            String    @unique
+  password         String
+  name             String
+  role             Role      @default(WORKER)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  ticketsCreated   Ticket[]  @relation("TicketCreator")
+  ticketsAssigned  Ticket[]  @relation("TicketAssignee")
+  documents        Document[] @relation("DocumentUploader")
+  documentAccess   UserDocument[]
+}
+
+model Document {
+  id          String    @id @default(uuid())
+  title       String
+  description String?
+  fileUrl     String
+  fileType    String
+  category    DocumentCategory
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  uploaderId  String
+  uploader    User      @relation("DocumentUploader", fields: [uploaderId], references: [id])
+  access      UserDocument[]
+}
+
+model UserDocument {
+  id          String    @id @default(uuid())
+  userId      String
+  documentId  String
+  user        User      @relation(fields: [userId], references: [id])
+  document    Document  @relation(fields: [documentId], references: [id])
+  accessedAt  DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@unique([userId, documentId])
+}
+
+model Ticket {
+  id          String    @id @default(uuid())
+  title       String
+  description String
+  status      TicketStatus @default(OPEN)
+  priority    TicketPriority @default(MEDIUM)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  creatorId   String
+  creator     User      @relation("TicketCreator", fields: [creatorId], references: [id])
+  assigneeId  String?
+  assignee    User?     @relation("TicketAssignee", fields: [assigneeId], references: [id])
+  responses   TicketResponse[]
+}
+
+model TicketResponse {
+  id          String    @id @default(uuid())
+  content     String
+  createdAt   DateTime  @default(now())
+  ticketId    String
+  ticket      Ticket    @relation(fields: [ticketId], references: [id])
+}
+
+model Form {
+  id          String    @id @default(uuid())
+  title       String
+  schema      Json      // JSON schema for form fields
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  submissions FormSubmission[]
+}
+
+model FormSubmission {
+  id          String    @id @default(uuid())
+  data        Json      // JSON data from submitted form
+  createdAt   DateTime  @default(now())
+  formId      String
+  form        Form      @relation(fields: [formId], references: [id])
+  userId      String
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  WORKER
+}
+
+enum DocumentCategory {
+  HR
+  ADMINISTRATIVE
+  FORM
+  OTHER
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}

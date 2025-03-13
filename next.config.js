@@ -1,5 +1,6 @@
+/** @type {import('next').NextConfig} */
 const nextConfig = {
-  webpack(config: { resolve: { modules: string[]; alias: any; }; }) {
+  webpack(config) {
     config.resolve.modules.push(__dirname);
     config.resolve.alias = {
       ...config.resolve.alias,
